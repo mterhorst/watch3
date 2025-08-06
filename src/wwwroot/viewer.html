@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <video id="video" autoplay playsinline></video>
+    <button onclick="video.play()">Play Video</button>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"
+            integrity="sha512-7SRCYIJtR6F8ocwW7UxW6wGKqbSyqREDbfCORCbGLatU0iugBLwyOXpzhkPyHIFdBO0K2VCu57fvP2Twgx1o2A=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer">
+    </script>
+
+    <script>
+
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+            ],
+            iceTransportPolicy: "all",
+            bundlePolicy: "balanced",
+            rtcpMuxPolicy: "require",
+        };
+
+        async function init() {
+
+            const pc = new RTCPeerConnection();
+            pc.addTransceiver("video", { direction: "recvonly" });
+
+            const video = document.getElementById('video');
+
+            pc.ontrack = e => {
+                console.log("Track kind:", e);
+                if (e.track.kind === "video") {
+                    video.srcObject = e.streams[0];
+                }
+            };
+
+            //await new Promise(x => setTimeout(x, 2000));
+
+            const connection = new signalR.HubConnectionBuilder().withUrl("/signal").build();
+            connection.on("ReceiveSignal", async (offerSdp) => {
+                await pc.setRemoteDescription({ type: "offer", sdp: offerSdp });
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                await waitForIceGatheringComplete(pc);
+
+                connection.invoke("SendAnswer", "room1", pc.localDescription.sdp);
+            });
+
+            await connection.start();
+            connection.invoke("JoinRoom", "room1");
+        }
+
+        init();
+
+
+
+
+
+
+        // OLD
+
+        //async function init() {
+
+        //    const configuration = {
+        //        iceServers: [
+        //            { urls: "stun:stun.l.google.com:19302" }
+        //        ]
+        //    };
+
+        //    const candidates = [];
+        //    const pc = new RTCPeerConnection(configuration);
+        //    pc.addTransceiver("video", { direction: "recvonly" });
+
+        //    pc.ontrack = ({ receiver, streams: [stream], track, transceiver }) => {
+        //        document.getElementById("remote").srcObject = stream[0];
+        //    };
+
+        //    pc.onicecandidate = (event) => {
+        //        if (event.candidate) {
+        //            candidates.push(event.candidate);
+        //        }
+        //    };
+
+        //    pc.onicegatheringstatechange = () => {
+        //        if (pc.iceGatheringState === 'complete') {
+        //            iceGatheringComplete = true;
+        //        }
+        //    };
+
+        //    const offer = await pc.createOffer({
+        //        iceRestart: false,
+        //        offerToReceiveAudio: true,
+        //        offerToReceiveVideo: true
+        //    });
+        //    await pc.setLocalDescription(offer);
+
+        //    await waitForIceGatheringComplete(pc);
+
+
+        //    const answerResp = await fetch("/whep", {
+        //        method: "POST",
+        //        body: offer.sdp
+        //    });
+
+        //    const answer = await answerResp.text();
+        //    await pc.setRemoteDescription({ type: "answer", sdp: answer });
+
+        //}
+
+        function waitForIceGatheringComplete(pc) {
+            return new Promise(resolve => {
+                if (pc.iceGatheringState === 'complete') {
+                    resolve(); // Already complete
+                } else {
+                    const checkState = () => {
+                        if (pc.iceGatheringState === 'complete') {
+                            pc.removeEventListener('icegatheringstatechange', checkState);
+                            resolve();
+                        }
+                    };
+                    pc.addEventListener('icegatheringstatechange', checkState);
+                }
+            });
+        }
+
+        //init();
+    </script>
+</body>
+</html>
