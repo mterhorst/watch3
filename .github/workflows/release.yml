@@ -139,6 +139,7 @@ jobs:
           WORKDIR /app
           COPY Watch3 .
           COPY appsettings.json .
+          COPY wwwroot ./wwwroot
           ENTRYPOINT ["/app/Watch3"]
           EOF
           # --- End of Dockerfile generation ---
