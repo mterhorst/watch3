@@ -54,7 +54,7 @@ namespace Watch3
                 {
                     using var client = new HttpClient();
 
-                    using var tokenResponse = client.Send(new HttpRequestMessage
+                    using var tokenResponse = await client.SendAsync(new HttpRequestMessage
                     {
                         Method = HttpMethod.Post,
                         RequestUri = new UriBuilder("https://login.microsoftonline.com")
@@ -91,12 +91,13 @@ namespace Watch3
                 {
                     throw;
                 }
-
             }
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", entraIdTokenResponse.AccessToken);
 
             var response = await base.SendAsync(request, token);
+
+            response.EnsureSuccessStatusCode();
 
             return response;
         }

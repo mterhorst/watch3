@@ -88,10 +88,26 @@ namespace Watch3
             webApi.MapPost("register_subscription", async (
                 [FromBody] PushSubscription subscription,
                 [FromServices] HostedHttp http,
+                [FromServices] ILogger<Program> logger,
                 CancellationToken token) =>
             {
-                await http.RegisterHostedNotifications(subscription, token);
-                return Results.Ok();
+                if (subscription is null)
+                {
+                    return Results.BadRequest();
+                }
+
+                logger.LogInformation("Attempting to register hosted notifications for subscription: {Subscription}", subscription);
+                try
+                {
+                    await http.RegisterHostedNotifications(subscription, token);
+                    logger.LogInformation("Successfully registered hosted notifications for subscription: {Subscription}", subscription);
+                    return Results.Ok();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to register hosted notifications for subscription: {Subscription}", subscription);
+                    return Results.BadRequest();
+                }
             });
 
             webApi.MapPost("stream/start", async ([FromServices] ObsWebsocketService obsWs, CancellationToken token) =>
