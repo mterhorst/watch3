@@ -59,13 +59,13 @@ namespace Watch3
                         Method = HttpMethod.Post,
                         RequestUri = new UriBuilder("https://login.microsoftonline.com")
                         {
-                            Path = $"{_entraId.Tenantid}/oauth2/v2.0/token"
+                            Path = $"{_entraId.tenantId}/oauth2/v2.0/token"
                         }.Uri,
                         Content = new FormUrlEncodedContent(
                         [
-                            new KeyValuePair<string, string>("client_id", _entraId.Clientid),
-                            new KeyValuePair<string, string>("client_secret", _entraId.Clientsecret),
-                            new KeyValuePair<string, string>("scope", "https://graph.microsoft.com/.default"),
+                            new KeyValuePair<string, string>("client_id", _entraId.ClientId),
+                            new KeyValuePair<string, string>("client_secret", _entraId.ClientSecret),
+                            new KeyValuePair<string, string>("scope", _entraId.Scope),
                             new KeyValuePair<string, string>("grant_type", "client_credentials")
                         ])
                     }, token);
