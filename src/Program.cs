@@ -16,6 +16,8 @@ namespace Watch3
                 builder.Configuration.AddJsonFile("appsettings.Client.json", optional: false, reloadOnChange: false);
             }
 
+            builder.Configuration.AddEnvironmentVariables();
+
             builder.Services.ConfigureHttpJsonOptions(options =>
             {
                 options.SerializerOptions.TypeInfoResolverChain.Insert(0, Json.JsonAppContext);
@@ -31,7 +33,7 @@ namespace Watch3
             builder.Services.AddTransient<ObsWebsocketSession>();
             builder.Services.AddSingleton<HelperService>();
             builder.Services.AddSingleton<ObsWebsocketService>();
-            builder.Services.AddSingleton<HostedHttpHandler>();
+            builder.Services.AddTransient<HostedHttpHandler>();
             builder.Services.AddHttpClient<HostedHttp>().AddHttpMessageHandler<HostedHttpHandler>();
 
             if (HelperService.IsClient)
