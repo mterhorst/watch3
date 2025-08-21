@@ -1,10 +1,9 @@
-﻿using Lib.Net.Http.WebPush;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
+using Watch3.Http;
 using Watch3.Models;
 using Watch3.Services;
 
@@ -19,7 +18,7 @@ namespace Watch3
         {
             controlApi.MapPost("register", (
                 [FromBody] PushSubscription subscription,
-                [FromServices] PushServiceClient client,
+                [FromServices] VapidHttp client,
                 [FromServices] ILogger<Program> logger) =>
             {
                 ArgumentNullException.ThrowIfNull(subscription);
@@ -28,15 +27,14 @@ namespace Watch3
                 pushSubscription = subscription;
             });
 
-            controlApi.MapPost("push", async ([FromServices] PushServiceClient client, [FromBody] PushPayload push) =>
+            controlApi.MapPost("push", async ([FromServices] VapidHttp client, [FromBody] PushPayload push, CancellationToken token) =>
             {
                 if (pushSubscription is null)
                 {
                     return Results.BadRequest();
                 }
 
-                var payload = JsonSerializer.Serialize(push, Json.JsonAppContext.PushPayload);
-                await client.RequestPushMessageDeliveryAsync(pushSubscription, new PushMessage(payload));
+                await client.RequestPushMessageDelivery(pushSubscription, push, token);
 
                 return Results.Ok();
             });
@@ -64,7 +62,7 @@ namespace Watch3
 
                 var answerSdp = await tcs.Task;
 
-                var location = new UriBuilder(helper.ClientHost)
+                var location = new UriBuilder(helper.AppConfig.ClientHost)
                 {
                     Path = $"whip",
                 }.Uri;

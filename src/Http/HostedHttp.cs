@@ -2,11 +2,10 @@
 using System.Net.Http.Headers;
 using System.Net.Mime;
 using System.Text;
-using Watch3.Services;
 using Watch3.Models;
-using Lib.Net.Http.WebPush;
+using Watch3.Services;
 
-namespace Watch3
+namespace Watch3.Http
 {
     public sealed class HostedHttp
     {
@@ -21,7 +20,7 @@ namespace Watch3
 
         public async Task RegisterHostedNotifications(PushSubscription subscription, CancellationToken token = default)
         {
-            var url = new UriBuilder(_helper.HostedHost)
+            var url = new UriBuilder(_helper.AppConfig.HostedHost)
             {
                 Path = "control/register"
             }.Uri;

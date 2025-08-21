@@ -1,19 +1,15 @@
 ﻿using System.Diagnostics;
+using Watch3.Models;
 using Watch3.Models.Obs;
 
 namespace Watch3.Services
 {
     public sealed class HelperService
     {
-        public static readonly bool IsClient = OperatingSystem.IsWindows();
-
         public readonly SemaphoreSlim ObsLock = new(initialCount: 1, maxCount: 1);
-
-        public string HostedHost => _configuration.GetValue<string>("HostedHost") ?? throw new ArgumentNullException("__HostedHost");
-        public string ClientHost => _configuration.GetValue<string>("ClientHost") ?? throw new ArgumentNullException("__ClientHost");
-
         public readonly Uri ObsUri = new UriBuilder("ws", "localhost", 8081).Uri;
-
+        
+        public AppConfig AppConfig => _configuration.GetSection("AppConfig").Get<AppConfig>() ?? throw new KeyNotFoundException("AppConfig not found.");
         public ObsConfig ObsConfig => _configuration.GetSection("ObsConfig").Get<ObsConfig>() ?? throw new KeyNotFoundException("ObsConfig not found.");
 
         private readonly IConfiguration _configuration;
@@ -42,6 +38,9 @@ namespace Watch3.Services
             if (IsObsRunning)
                 return false;
 
+            var isWindows = OperatingSystem.IsWindows();
+            var exeName = isWindows ? $"{ObsConfig.ExeName}.exe" : ObsConfig.ExeName;
+
             await ObsLock.WaitAsync(token);
 
             try
@@ -49,11 +48,14 @@ namespace Watch3.Services
                 var startInfo = new ProcessStartInfo
                 {
                     WorkingDirectory = ObsConfig.ObsDirectory,
-                    FileName = $"{ObsConfig.ExeName}.exe",
-                    UseShellExecute = true
+                    FileName = Path.Combine(ObsConfig.ObsDirectory, exeName)
                 };
                 var process = Process.Start(startInfo)!;
-                process.WaitForInputIdle(Timeout.Infinite);
+
+                if (isWindows)
+                {
+                    process.WaitForInputIdle(Timeout.Infinite);
+                }
             }
             finally
             {
