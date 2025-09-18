@@ -16,21 +16,19 @@ namespace Watch3.Http
         private const string ENCRYPTED_CONTENT_ENCODING = "aes128gcm";
 
         private readonly HttpClient _httpClient;
-        private readonly PushServiceConfig _config;
 
-        public VapidHttp(HttpClient httpClient, PushServiceConfig config)
+        public VapidHttp(HttpClient httpClient)
         {
             _httpClient = httpClient;
-            _config = config;
         }
 
-        public async Task RequestPushMessageDelivery(PushSubscription subscription, PushPayload payload, CancellationToken token)
+        public async Task RequestPushMessageDelivery(PushServiceConfig config, PushSubscription subscription, PushPayload payload, CancellationToken token)
         {
             ArgumentNullException.ThrowIfNull(subscription);
             ArgumentNullException.ThrowIfNull(payload);
 
             await using var message = new MemoryStream();
-            await JsonSerializer.SerializeAsync(message, payload, Json.JsonAppContext.PushPayload, token);
+            await JsonSerializer.SerializeAsync(message, payload, Json.Default.PushPayload, token);
             message.Seek(0, SeekOrigin.Begin);
 
             using var request = new HttpRequestMessage(HttpMethod.Post, subscription.Endpoint);
@@ -40,8 +38,8 @@ namespace Watch3.Http
             var endpointUri = new Uri(subscription.Endpoint);
             var audience = endpointUri.Scheme + @"://" + endpointUri.Host;
 
-            string vapidToken = GenerateVapidJwt(audience, DateTime.UtcNow.AddHours(12));
-            request.Headers.Authorization = new AuthenticationHeaderValue("vapid", $"t={vapidToken}, k={_config.PublicKey}");
+            string vapidToken = GenerateVapidJwt(config, audience, DateTime.UtcNow.AddHours(12));
+            request.Headers.Authorization = new AuthenticationHeaderValue("vapid", $"t={vapidToken}, k={config.PublicKey}");
 
             var (agreementPublicKey, sharedSecretHmac) = ECDHAgreementCalculator.CalculateAgreement(
                 FromUrlBase64String(subscription.Keys.P256dh),
@@ -81,12 +79,12 @@ Content: {await response.Content.ReadAsStringAsync(token)}
 
         // ----------------- VAPID JWT -----------------
 
-        private string GenerateVapidJwt(string audience, DateTime absoluteExpiration)
+        private string GenerateVapidJwt(PushServiceConfig config, string audience, DateTime absoluteExpiration)
         {
-            using var jwtSigner = new ES256Signer(FromUrlBase64String(_config.PrivateKey));
+            using var jwtSigner = new ES256Signer(FromUrlBase64String(config.PrivateKey));
 
             var headerSegment = GenerateJwtHeaderSegment();
-            var bodySegment = GenerateJwtBodySegment(audience, absoluteExpiration);
+            var bodySegment = GenerateJwtBodySegment(config.Subject, audience, absoluteExpiration);
             var jwtInput = headerSegment + "." + bodySegment;
 
             var signature = ToUrlBase64String(jwtSigner.GenerateSignature(jwtInput));
@@ -97,25 +95,20 @@ Content: {await response.Content.ReadAsStringAsync(token)}
         {
             return ToUrlBase64String(Encoding.UTF8.GetBytes(new JsonObject
             {
-                new KeyValuePair<string, JsonNode?>("typ", "JWT"),
-                new KeyValuePair<string, JsonNode?>("alg", "ES256")
+                new("typ", "JWT"),
+                new("alg", "ES256")
             }.ToJsonString()));
         }
 
-        private string GenerateJwtBodySegment(string audience, DateTime absoluteExpiration)
+        private string GenerateJwtBodySegment(string subject, string audience, DateTime absoluteExpiration)
         {
-            var body = new List<KeyValuePair<string, JsonNode?>>
+            return ToUrlBase64String(Encoding.UTF8.GetBytes(new JsonObject
             {
                 new("aud", audience),
-                new("exp", new DateTimeOffset(absoluteExpiration).ToUnixTimeSeconds())
-            };
+                new("exp", new DateTimeOffset(absoluteExpiration).ToUnixTimeSeconds()),
+                new("sub", subject),
 
-            if (!string.IsNullOrEmpty(_config.Subject))
-            {
-                body.Add(new("sub", _config.Subject));
-            }
-
-            return ToUrlBase64String(Encoding.UTF8.GetBytes(new JsonObject(body).ToJsonString()));
+            }.ToJsonString()));
         }
 
         // ----------------- Encryption -----------------

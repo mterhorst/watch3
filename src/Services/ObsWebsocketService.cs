@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.WebSockets;
 using System.Text.Json;
@@ -56,12 +57,14 @@ namespace Watch3.Services
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
         private readonly HelperService _helper;
+        private readonly ILogger<ObsWebsocketSession> _logger;
 
-        private event EventHandler<ObsWsRoot>? OnMessage;
+        private readonly ConcurrentDictionary<Guid, TaskCompletionSource<ObsWsRoot>> _pendingRequests = new();
 
-        public ObsWebsocketSession(HelperService helper)
+        public ObsWebsocketSession(HelperService helper, ILogger<ObsWebsocketSession> logger)
         {
             _helper = helper;
+            _logger = logger;
         }
 
         public async Task Connect(CancellationToken token)
@@ -115,9 +118,22 @@ namespace Watch3.Services
                             }
                         }
 
-                        if (OnMessage is { } onMessage  && onMessage.GetInvocationList().Length > 0)
+                        var response = JsonSerializer.Deserialize(writer.WrittenMemory.Span, Json.Default.ObsWsRoot)!;
+
+
+                        if (response.Op == 2)
                         {
-                            OnMessage?.Invoke(null, JsonSerializer.Deserialize(writer.WrittenMemory.Span, Json.JsonAppContext.ObsWsRoot)!);
+                            if (_pendingRequests.TryGetValue(Guid.Empty, out var tcs))
+                            {
+                                tcs.TrySetResult(response);
+                            }
+                        }
+                        else if (response.D["requestId"]?.GetValue<Guid>() is { } requestId)
+                        {
+                            if (_pendingRequests.TryGetValue(requestId, out var tcs))
+                            {
+                                tcs.TrySetResult(response);
+                            }
                         }
                     }
                 }, token);
@@ -140,34 +156,35 @@ namespace Watch3.Services
             var request = new ObsWsRoot
             (
                 Op: 6,
-                D: JsonSerializer.SerializeToNode(new ObsWsRequest(name, id, RequestData ?? []), Json.JsonAppContext.ObsWsRequest)!
+                D: JsonSerializer.SerializeToNode(new ObsWsRequest(name, id, RequestData ?? []), Json.Default.ObsWsRequest)!
             );
             return await WaitSendRequest(request, id, typeInfo, token);
         }
 
         public async Task<ObsWsRequestResponse> StartStream(CancellationToken token = default) =>
-            await SendRequest("StartStream", Json.JsonAppContext.ObsWsRequestResponse, token);
+            await SendRequest("StartStream", Json.Default.ObsWsRequestResponse, token);
 
         public async Task<ObsWsRequestResponse> StopStream(CancellationToken token = default) =>
-            await SendRequest("StopStream", Json.JsonAppContext.ObsWsRequestResponse, token);
+            await SendRequest("StopStream", Json.Default.ObsWsRequestResponse, token);
 
         public async Task<ObsWsGetStreamStatusResponse> GetStreamStatus(CancellationToken token = default) =>
-            (await SendRequest("GetStreamStatus", Json.JsonAppContext.ObsWsRequestResponseObsWsGetStreamStatusResponse, token)).ResponseData;
+            (await SendRequest("GetStreamStatus", Json.Default.ObsWsRequestResponseObsWsGetStreamStatusResponse, token)).ResponseData;
 
         public async Task<ObsWsRequestResponse> StartRecord(CancellationToken token = default) =>
-            await SendRequest("StartRecord", Json.JsonAppContext.ObsWsRequestResponse, token);
+            await SendRequest("StartRecord", Json.Default.ObsWsRequestResponse, token);
 
         public async Task<ObsWsRequestResponse> StopRecord(CancellationToken token = default) =>
-            await SendRequest("StopRecord", Json.JsonAppContext.ObsWsRequestResponse, token);
+            await SendRequest("StopRecord", Json.Default.ObsWsRequestResponse, token);
 
         public async Task<ObsWsGetRecordStatusResponse> GetRecordStatus(CancellationToken token = default) =>
-            (await SendRequest("GetRecordStatus", Json.JsonAppContext.ObsWsRequestResponseObsWsGetRecordStatusResponse, token)).ResponseData;
+            (await SendRequest("GetRecordStatus", Json.Default.ObsWsRequestResponseObsWsGetRecordStatusResponse, token)).ResponseData;
 
-        public async Task<ObsWsRequestResponse> SplitRecordFile(CancellationToken token = default) => 
-            await SendRequest("SplitRecordFile", Json.JsonAppContext.ObsWsRequestResponse, token);
+        public async Task<ObsWsRequestResponse> SplitRecordFile(CancellationToken token = default) =>
+            await SendRequest("SplitRecordFile", Json.Default.ObsWsRequestResponse, token);
 
         public async ValueTask DisposeAsync()
         {
+            _pendingRequests.Clear();
             try { await StopStream(); } catch { }
             await Disconnect();
             _client?.Dispose();
@@ -184,29 +201,21 @@ namespace Watch3.Services
             ArgumentNullException.ThrowIfNull(_client);
             ObjectDisposedException.ThrowIf(IsDisposed, _client);
 
-            var tcs = new TaskCompletionSource<T>();
+            var tcs = new TaskCompletionSource<ObsWsRoot>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _pendingRequests.TryAdd(id, tcs);
 
-            void onMessage(object? s, ObsWsRoot e)
-            {
-                Console.WriteLine(e.ToString());
-
-                if (e.D["requestId"]?.GetValue<Guid>() is not { } requestId || requestId == id)
-                {
-                    tcs.SetResult(e.D.Deserialize(typeInfo)!);
-                }
-            }
-            OnMessage += onMessage;
-
-            await _client.SendAsync(JsonSerializer.SerializeToUtf8Bytes(request, Json.JsonAppContext.ObsWsRoot),
+            await _client.SendAsync(JsonSerializer.SerializeToUtf8Bytes(request, Json.Default.ObsWsRoot),
                                     WebSocketMessageType.Text,
                                     endOfMessage: true,
                                     token);
 
-            var result = await tcs.Task;
+            var result = await tcs.Task.WaitAsync(token);
 
-            OnMessage -= onMessage;
+            _logger.LogInformation("Received OBS websocket message {id} {msg}", id, result);
 
-            return result;
+            _pendingRequests.TryRemove(id, out _);
+
+            return result.D.Deserialize(typeInfo)!;
         }
 
         private async Task Disconnect()
@@ -220,9 +229,9 @@ namespace Watch3.Services
             var request = new ObsWsRoot
             (
                 Op: 1,
-                D: JsonSerializer.SerializeToNode(new ObsWsIdentify(1, null, int.MaxValue), Json.JsonAppContext.ObsWsIdentify)!
+                D: JsonSerializer.SerializeToNode(new ObsWsIdentify(1, null, int.MaxValue), Json.Default.ObsWsIdentify)!
             );
-            return await WaitSendRequest(request, Guid.NewGuid(), Json.JsonAppContext.ObsWsIdentified, token);
+            return await WaitSendRequest(request, Guid.Empty, Json.Default.ObsWsIdentified, token);
         }
 
         private sealed record ObsWsMessage(int Op, ObsWsRoot Message);

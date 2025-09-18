@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Watch3.Models;
 using Watch3.Models.Obs;
 
@@ -40,7 +41,7 @@ namespace Watch3.Services
 
             var isWindows = OperatingSystem.IsWindows();
             var exeName = isWindows ? $"{ObsConfig.ExeName}.exe" : ObsConfig.ExeName;
-
+            
             await ObsLock.WaitAsync(token);
 
             try
@@ -63,6 +64,25 @@ namespace Watch3.Services
             }
 
             return true;
+        }
+
+        public void LaunchBrowser(Uri url)
+        {
+            try
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    Process.Start("xdg-open", url.ToString());
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error launching browser: {ex.Message}");
+            }
         }
     }
 }

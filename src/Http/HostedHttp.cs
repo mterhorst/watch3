@@ -22,10 +22,14 @@ namespace Watch3.Http
         {
             var url = new UriBuilder(_helper.AppConfig.HostedHost)
             {
-                Path = "control/register"
+                Path = "api/register_subscription"
             }.Uri;
 
-            await _client.PostAsJsonAsync(url, subscription, Json.JsonAppContext.PushSubscription, token);
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Content = JsonContent.Create(subscription, Json.Default.PushSubscription);
+            request.Headers.Add("Cookie", $"{nameof(PushName)}={Enum.GetName(PushName.PushClient)!}");
+            await _client.SendAsync(request, token);
         }
     }
 
@@ -74,7 +78,7 @@ namespace Watch3.Http
                         throw new HttpRequestException(await tokenResponse.Content.ReadAsStringAsync(token), null, tokenResponse.StatusCode);
                     }
 
-                    entraIdTokenResponse = (await tokenResponse.Content.ReadFromJsonAsync(Json.JsonAppContext.EntraIdTokenResponse, token))!;
+                    entraIdTokenResponse = (await tokenResponse.Content.ReadFromJsonAsync(Json.Default.EntraIdTokenResponse, token))!;
                     issuedAt = DateTime.UtcNow;
                 }
                 catch (HttpRequestException hre) when (hre.StatusCode == HttpStatusCode.Unauthorized)
@@ -100,6 +104,5 @@ namespace Watch3.Http
 
             return response;
         }
-
     }
 }

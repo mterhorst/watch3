@@ -4,7 +4,7 @@
     "http": {
       "commandName": "Project",
       "dotnetRunMessages": true,
-      "launchBrowser": true,
+      "launchBrowser": false,
       "launchUrl": "control.html",
       "applicationUrl": "http://localhost:5010/",
       "environmentVariables": {

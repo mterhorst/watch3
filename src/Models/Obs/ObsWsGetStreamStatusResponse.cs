@@ -2,11 +2,11 @@
 {
     public sealed record ObsWsGetStreamStatusResponse(
         bool OutputActive,
-        bool OutputReconnecting,
-        string OutputTimecode,
-        int OutputDuration,
-        int OutputCongestion,
         int OutputBytes,
+        double OutputCongestion,
+        int OutputDuration,
+        bool OutputReconnecting,
         int OutputSkippedFrames,
+        string OutputTimecode,
         int OutputTotalFrames);
 }
