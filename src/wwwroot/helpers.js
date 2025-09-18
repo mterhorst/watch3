@@ -1,4 +1,4 @@
-﻿export default class Helpers {
+export default class Helpers {
     static async sendPushRequest(type, data) {
         const subscription = (await (await navigator.serviceWorker.getRegistration()).pushManager.getSubscription()).toJSON();
 

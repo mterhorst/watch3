@@ -1,4 +1,4 @@
-﻿import { LitElement, html, css } from './lit-core.min.js';
+import { LitElement, html, css } from './lit-core.min.js';
 import Helpers from "./helpers.js";
 class VideoViewer extends LitElement {
     static styles = css`

@@ -1,4 +1,4 @@
-﻿let subscriptionId;
+let subscriptionId;
 
 self.addEventListener('push', async (event) => {
     const data = event.data.json();

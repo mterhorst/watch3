@@ -1,4 +1,4 @@
-﻿import { LitElement, html, css } from './lit-core.min.js';
+import { LitElement, html, css } from './lit-core.min.js';
 
 class SimpleHeader extends LitElement {
     static styles = css`
