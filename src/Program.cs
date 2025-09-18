@@ -37,8 +37,11 @@ namespace Watch3
             builder.Services.AddKeyedSingleton("PushClient",
             builder.Configuration.GetSection("PushClient").Get<PushServiceConfig>() ?? throw new KeyNotFoundException("PushClient not found."));
 
-            builder.Services.AddKeyedSingleton("PushUser",
-            builder.Configuration.GetSection("PushUser").Get<PushServiceConfig>() ?? throw new KeyNotFoundException("PushUser not found."));
+            if (appConfig.IsClient)
+            {
+                builder.Services.AddKeyedSingleton("PushUser",
+                builder.Configuration.GetSection("PushUser").Get<PushServiceConfig>() ?? throw new KeyNotFoundException("PushUser not found."));
+            }
 
             var app = builder.Build();
 
