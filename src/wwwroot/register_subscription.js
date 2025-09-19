@@ -46,7 +46,7 @@ class RegisterSubscription extends LitElement {
         console.log(w.headers)
 
         const registration = await navigator.serviceWorker.register('/service-worker.js', {
-            type: "module"
+            
         });
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
