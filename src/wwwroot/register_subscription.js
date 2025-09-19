@@ -41,10 +41,6 @@ class RegisterSubscription extends LitElement {
             return;
         }
 
-        let w = await fetch("service-worker.js", { redirect: "error" })
-        console.log(w)
-        console.log(w.headers)
-
         const registration = await navigator.serviceWorker.register('/service-worker.js', {
             
         });

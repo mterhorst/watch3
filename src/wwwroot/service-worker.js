@@ -25,6 +25,6 @@ self.addEventListener('push', async (event) => {
 
 self.addEventListener("fetch", event => {
     event.waitUntil((async () => {
-        self.subscriptionId = (await cookieStore.get("SubscriptionId"))?.value;
+        self.subscriptionId = Number((await cookieStore.get("SubscriptionId"))?.value);
     })());
 });
