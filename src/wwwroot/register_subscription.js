@@ -40,7 +40,10 @@ class RegisterSubscription extends LitElement {
             this.status = "No publicVapidKey found!";
             return;
         }
-        
+
+        let w = await fetch("service-worker.js", { redirect: "error" })
+        console.log(w)
+
         const registration = await navigator.serviceWorker.register('service-worker.js', {
             type: "module"
         });
