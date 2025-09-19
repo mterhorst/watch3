@@ -1,4 +1,5 @@
 import { LitElement, html, css } from './lit-core.min.js';
+import './register_subscription.js'
 
 const globalStyles = css`
   body {
@@ -9,7 +10,9 @@ const globalStyles = css`
 
 class GlobalStyles extends LitElement {
     render() {
-        return html``;
+        return html`
+            <register-subscription></register-subscription>
+        `;
     }
 
     connectedCallback() {

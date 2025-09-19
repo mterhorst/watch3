@@ -1,6 +1,5 @@
 import { LitElement, html, css } from './lit-core.min.js';
 import Helpers from "./helpers.js";
-import './register_subscription.js'
 
 class VideoViewer extends LitElement {
     static styles = css`
@@ -34,7 +33,6 @@ class VideoViewer extends LitElement {
 
     render() {
         return html`
-            <register-subscription></register-subscription>
             <video id="video" autoplay playsinline></video>
             <br />
             ${this.showRestart
