@@ -19,7 +19,7 @@ jobs:
             runner: ubuntu-latest
           - arch: arm64
             runtime: linux-arm64
-            runner: ubuntu-24.04-arm64
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout code
