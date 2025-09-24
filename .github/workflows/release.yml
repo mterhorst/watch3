@@ -21,7 +21,7 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Publish Native AOT
+      - name: Publish Native AOT (x64)
         run: |
           dotnet publish src/Watch3.csproj \
             -c Release \
@@ -31,19 +31,42 @@ jobs:
             -r linux-x64 \
             -o publish/linux-x64
 
-      - name: Create zip archive
+      - name: Publish Native AOT (arm64)
+        run: |
+          dotnet publish src/Watch3.csproj \
+            -c Release \
+            -p:PublishAot=true \
+            -p:PublishSingleFile=true \
+            -p:SelfContained=true \
+            -r linux-arm64 \
+            -o publish/linux-arm64
+
+      - name: Create zip archive (x64)
         run: |
           cd publish/linux-x64
           zip -r ../../watch3-linux-x64.zip .
           cd ../../
 
-      - name: Upload Linux artifact
+      - name: Create zip archive (arm64)
+        run: |
+          cd publish/linux-arm64
+          zip -r ../../watch3-linux-arm64.zip .
+          cd ../../
+
+      - name: Upload Linux artifact (x64)
         uses: actions/upload-artifact@v4
         with:
           name: watch3-linux-x64
           path: watch3-linux-x64.zip
 
+      - name: Upload Linux artifact (arm64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: watch3-linux-arm64
+          path: watch3-linux-arm64.zip
+
   build-windows:
+    if: false
     name: Build for Windows
     runs-on: windows-latest
     steps:
