@@ -104,7 +104,9 @@ namespace Watch3.Cdp
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error trying to launch content on port {Port}. Attempt {Attempt}/{MaxAttempts}", port, i + 1, tryCount);
+                    _logger.LogWarning(ex, "Error trying to launch content on port {Port}. Attempt {Attempt}/{MaxAttempts}", port, i + 1, tryCount);
+                    
+                    await Task.Delay(500);
                 }
             }
 
