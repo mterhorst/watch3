@@ -16,12 +16,14 @@ namespace Watch3.Cdp
         private readonly AppConfig _config;
         private readonly IServiceProvider _services;
         private readonly IHostApplicationLifetime _lifetime;
+        private readonly ILogger<CdpBrowser> _logger;
 
-        public CdpBrowser(AppConfig config, IServiceProvider services, IHostApplicationLifetime lifetime)
+        public CdpBrowser(AppConfig config, IServiceProvider services, IHostApplicationLifetime lifetime, ILogger<CdpBrowser> logger)
         {
             _config = config;
             _services = services;
             _lifetime = lifetime;
+            _logger = logger;
         }
 
         public async Task<CdpBrowserSession> Launch(bool headless, string profile)
@@ -100,7 +102,10 @@ namespace Watch3.Cdp
                 {
                     return (await http.GetFromJsonAsync($"http://127.0.0.1:{port}/json/version", Json.Default.DTJsonVersionResponse))!;
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error trying to launch content on port {Port}. Attempt {Attempt}/{MaxAttempts}", port, i + 1, tryCount);
+                }
             }
 
             throw new TimeoutException();
